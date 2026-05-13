@@ -14,10 +14,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin<HomeScreen> {
   final ApiServices apiServices = ApiServices();
 
   late Future<Map<String, dynamic>> _allDataFuture;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -25,18 +29,31 @@ class _HomeScreenState extends State<HomeScreen> {
     _allDataFuture = fetchAllData();
   }
 
+  /// All TMDB requests start together; [Future.wait] completes when the slowest finishes.
   Future<Map<String, dynamic>> fetchAllData() async {
+    try {
+      return await _fetchAllDataOnce();
+    } catch (_) {
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      return await _fetchAllDataOnce();
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchAllDataOnce() async {
     try {
       final upcoming = apiServices.getUpcomingMovies();
       final nowPlaying = apiServices.getNowPlayingMovies();
       final topRatedSeries = apiServices.getTopRatedSeries();
-
-      final results = await Future.wait([upcoming, nowPlaying, topRatedSeries]);
+      final results = await Future.wait([
+        upcoming,
+        nowPlaying,
+        topRatedSeries,
+      ]);
 
       return {
-        "upcoming": results[0],
-        "nowPlaying": results[1],
-        "topSeries": results[2],
+        "upcoming": results[0] as UpcomingMovieModel,
+        "nowPlaying": results[1] as UpcomingMovieModel,
+        "topSeries": results[2] as TvSeriesModel,
       };
     } catch (e) {
       throw Exception("Failed to load data: $e");
@@ -45,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -131,16 +149,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                 const SizedBox(height: 20),
 
-                // Now Playing
                 MovieCard(
-                  future: Future.value(nowPlaying),
+                  data: nowPlaying,
                   headLineText: "Now Playing",
                 ),
                 const SizedBox(height: 10),
 
-                // Upcoming
                 MovieCard(
-                  future: Future.value(upcoming),
+                  data: upcoming,
                   headLineText: "Upcoming Movies",
                 ),
                 const SizedBox(height: 10),

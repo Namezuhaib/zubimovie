@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,13 +16,22 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends State<SearchScreen>
+    with AutomaticKeepAliveClientMixin<SearchScreen> {
   final TextEditingController searchController = TextEditingController();
   final ApiServices apiServices = ApiServices();
   late Future<MovieRecommendationModel> popularMovies;
 
   SearchModel? searchModel;
   bool isLoading = false;
+  bool searchFailed = false;
+  Timer? _debounce;
+  int _seq = 0;
+
+  static const Duration _searchDebounce = Duration(milliseconds: 450);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -30,41 +41,63 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     searchController.dispose();
     super.dispose();
   }
 
-  void search(String query) async {
-    if (query.trim().isEmpty) {
-      setState(() {
-        searchModel = null;
-      });
+  void _clearSearchUi() {
+    _debounce?.cancel();
+    _seq++;
+    setState(() {
+      searchModel = null;
+      searchFailed = false;
+      isLoading = false;
+    });
+  }
+
+  void _onSearchChanged(String raw) {
+    _debounce?.cancel();
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      _clearSearchUi();
       return;
     }
+    _debounce = Timer(_searchDebounce, () {
+      if (!mounted) return;
+      _runSearch(trimmed);
+    });
+  }
 
+  Future<void> _runSearch(String query) async {
+    final id = ++_seq;
     setState(() {
       isLoading = true;
+      searchFailed = false;
     });
 
     try {
       final results = await apiServices.getSearchedMovie(query);
+      if (!mounted || id != _seq) return;
       setState(() {
         searchModel = results;
+        isLoading = false;
+        searchFailed = false;
       });
     } catch (e) {
       debugPrint('Search error: $e');
+      if (!mounted || id != _seq) return;
       setState(() {
         searchModel = null;
-      });
-    } finally {
-      setState(() {
         isLoading = false;
+        searchFailed = true;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -78,18 +111,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: const Icon(Icons.clear, color: Colors.grey),
                 onSuffixTap: () {
+                  _debounce?.cancel();
                   searchController.clear();
-                  search(""); // ✅ Clear results
+                  _clearSearchUi();
                 },
                 style: const TextStyle(color: Colors.white),
-                backgroundColor: Colors.grey.withOpacity(0.2),
-                onChanged: (value) {
-                  if (value.trim().isNotEmpty) {
-                    search(value.trim());
-                  } else {
-                    search("");
-                  }
-                },
+                backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                onChanged: _onSearchChanged,
               ),
               const SizedBox(height: 20),
 
@@ -105,19 +133,31 @@ class _SearchScreenState extends State<SearchScreen> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       } else if (snapshot.hasError) {
-                        return const Center(
-                          child: Text(
-                            "Error loading top searches",
-                            style: TextStyle(color: Colors.white),
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                "Error loading top searches",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    popularMovies =
+                                        apiServices.getPopularMovies();
+                                  });
+                                },
+                                child: const Text('Retry'),
+                              ),
+                            ],
                           ),
                         );
                       } else if (snapshot.hasData) {
                         final results = snapshot.data?.results ?? [];
                         final filtered = results
-                            .where(
-                              (r) =>
-                                  r.posterPath.isNotEmpty,
-                            )
+                            .where((r) => r.posterPath.isNotEmpty)
                             .toList();
 
                         if (filtered.isEmpty) {
@@ -150,7 +190,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                   final movie = filtered[index];
                                   final posterUrl =
                                       '$imageUrl${movie.posterPath}';
-                                  final title = movie.title ?? 'No Title';
+                                  final title = movie.title.isNotEmpty
+                                      ? movie.title
+                                      : 'No Title';
 
                                   return InkWell(
                                     onTap: () {
@@ -167,7 +209,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                     child: Container(
                                       margin: const EdgeInsets.only(bottom: 10),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.05),
+                                        color: Colors.white
+                                            .withValues(alpha: 0.05),
                                         borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Padding(
@@ -187,9 +230,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                                 errorWidget:
                                                     (context, url, error) =>
                                                         const Icon(
-                                                          Icons.error,
-                                                          color: Colors.white,
-                                                        ),
+                                                  Icons.error,
+                                                  color: Colors.white,
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(width: 16),
@@ -236,6 +279,16 @@ class _SearchScreenState extends State<SearchScreen> {
                     },
                   ),
                 )
+              else if (searchFailed)
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      'Search failed. Check your connection and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+                  ),
+                )
               else if (searchModel == null ||
                   (searchModel?.results.isEmpty ?? true))
                 const Expanded(
@@ -252,11 +305,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     itemCount: searchModel?.results.length ?? 0,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 15,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 0.6,
-                        ),
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 15,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.6,
+                    ),
                     itemBuilder: (context, index) {
                       final result = searchModel!.results[index];
                       final imagePath =
@@ -292,9 +345,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   errorWidget: (context, url, error) =>
                                       Image.asset(
-                                        "assets/logo.png",
-                                        height: 170,
-                                      ),
+                                    "assets/logo.png",
+                                    height: 170,
+                                  ),
                                 ),
                               ),
                             ),

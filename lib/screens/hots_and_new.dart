@@ -1,4 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:zubimovie/common/utils.dart';
+import 'package:zubimovie/models/movie_recommendation_model.dart';
+import 'package:zubimovie/models/upcoming_model.dart';
+import 'package:zubimovie/services/api_services.dart';
 import 'package:zubimovie/widgets/coming_soon_movie.dart';
 
 class HotsAndNewScreen extends StatefulWidget {
@@ -9,6 +16,86 @@ class HotsAndNewScreen extends StatefulWidget {
 }
 
 class _HotsAndNewScreenState extends State<HotsAndNewScreen> {
+  final ApiServices _api = ApiServices();
+  late final Future<UpcomingMovieModel> _upcomingFuture;
+  late final Future<MovieRecommendationModel> _popularFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _upcomingFuture = _api.getUpcomingMovies();
+    _popularFuture = _api.getPopularMovies();
+  }
+
+  String _monthLabel(DateTime? d) =>
+      d != null ? DateFormat('MMM').format(d) : 'TBA';
+
+  String _dayLabel(DateTime? d) =>
+      d != null ? DateFormat('d').format(d) : '—';
+
+  Widget _fromUpcoming(MovieResult m) {
+    final path = (m.backdropPath != null && m.backdropPath!.isNotEmpty)
+        ? m.backdropPath!
+        : (m.posterPath ?? '');
+    final hero = path.isNotEmpty ? '$imageUrl$path' : '';
+    final logo = (m.posterPath != null && m.posterPath!.isNotEmpty)
+        ? '$imageUrl${m.posterPath}'
+        : null;
+    return ComingSoonMovie(
+      imageUrl: hero,
+      overview: m.overview,
+      logoUrl: logo,
+      displayTitle: m.title,
+      month: _monthLabel(m.releaseDate),
+      day: _dayLabel(m.releaseDate),
+    );
+  }
+
+  Widget _fromPopular(Result m) {
+    final path = m.backdropPath.isNotEmpty
+        ? m.backdropPath
+        : m.posterPath;
+    final hero = path.isNotEmpty ? '$imageUrl$path' : '';
+    final logo = m.posterPath.isNotEmpty ? '$imageUrl${m.posterPath}' : null;
+    final title = m.title.isNotEmpty ? m.title : m.originalTitle;
+    return ComingSoonMovie(
+      imageUrl: hero,
+      overview: m.overview,
+      logoUrl: logo,
+      displayTitle: title,
+      month: _monthLabel(m.releaseDate),
+      day: _dayLabel(m.releaseDate),
+    );
+  }
+
+  Widget _loadingBody() => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+  Widget _errorBody(String msg, VoidCallback onRetry) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                msg,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -19,10 +106,10 @@ class _HotsAndNewScreenState extends State<HotsAndNewScreen> {
           appBar: AppBar(
             elevation: 0,
             backgroundColor: Colors.black,
-            title: Text("New & Hots", style: TextStyle(color: Colors.white)),
+            title: const Text("New & Hots", style: TextStyle(color: Colors.white)),
             actions: [
-              Icon(Icons.cast, color: Colors.white),
-              SizedBox(width: 20),
+              const Icon(Icons.cast, color: Colors.white),
+              const SizedBox(width: 20),
               ClipRRect(
                 borderRadius: BorderRadius.circular(50),
                 child: Image.asset(
@@ -32,7 +119,7 @@ class _HotsAndNewScreenState extends State<HotsAndNewScreen> {
                   fit: BoxFit.cover,
                 ),
               ),
-              SizedBox(width: 20),
+              const SizedBox(width: 20),
             ],
             bottom: TabBar(
               dividerColor: Colors.black,
@@ -42,9 +129,10 @@ class _HotsAndNewScreenState extends State<HotsAndNewScreen> {
                 color: Colors.white,
               ),
               labelColor: Colors.black,
-              labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              labelStyle:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               unselectedLabelColor: Colors.white,
-              tabs: [
+              tabs: const [
                 Tab(text: "  🍿 Coming Soon  "),
                 Tab(text: "  🔥 Everyone's Watching  "),
               ],
@@ -52,42 +140,65 @@ class _HotsAndNewScreenState extends State<HotsAndNewScreen> {
           ),
           body: TabBarView(
             children: [
-              SingleChildScrollView(
-                child: Column(
-                  children: [
-                    ComingSoonMovie(
-                      imageUrl:
-                          'https://miro.medium.com/v2/resize:fit:1024/1*P_YU8dGinbCy6GHlgq5OQA.jpeg',
-                      overview:
-                          'When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces, and one strange little girl.',
-                      logoUrl:
-                          "https://s3.amazonaws.com/www-inside-design/uploads/2017/10/strangerthings_feature-983x740.jpg",
-                      month: "Jun",
-                      day: "19",
-                    ),
-                    SizedBox(height: 20),
-                    ComingSoonMovie(
-                      imageUrl:
-                          'https://www.pinkvilla.com/images/2022-09/rrr-review.jpg',
-                      overview:
-                          'A fearless revolutionary and an officer in the British force, who once shared a deep bond, decide to join forces and chart out an inspirational path of freedom against the despotic rulers.',
-                      logoUrl:
-                          "https://www.careerguide.com/career/wp-content/uploads/2023/10/RRR_full_form-1024x576.jpg",
-                      month: "Mar",
-                      day: "07",
-                    ),
-                  ],
-                ),
+              FutureBuilder<UpcomingMovieModel>(
+                future: _upcomingFuture,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return _loadingBody();
+                  }
+                  if (snap.hasError || !snap.hasData) {
+                    return _errorBody(
+                      'Could not load coming soon.',
+                      () => setState(() {
+                        _upcomingFuture = _api.getUpcomingMovies();
+                      }),
+                    );
+                  }
+                  final list = snap.data!.results;
+                  if (list.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No upcoming titles.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: math.min(list.length, 20),
+                    itemBuilder: (_, i) => _fromUpcoming(list[i]),
+                  );
+                },
               ),
-              ComingSoonMovie(
-                imageUrl:
-                    'https://www.pinkvilla.com/images/2022-09/rrr-review.jpg',
-                overview:
-                    'A fearless revolutionary and an officer in the British force, who once shared a deep bond, decide to join forces and chart out an inspirational path of freedom against the despotic rulers.',
-                logoUrl:
-                    "https://www.careerguide.com/career/wp-content/uploads/2023/10/RRR_full_form-1024x576.jpg",
-                month: "Mar",
-                day: "07",
+              FutureBuilder<MovieRecommendationModel>(
+                future: _popularFuture,
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return _loadingBody();
+                  }
+                  if (snap.hasError || !snap.hasData) {
+                    return _errorBody(
+                      'Could not load popular picks.',
+                      () => setState(() {
+                        _popularFuture = _api.getPopularMovies();
+                      }),
+                    );
+                  }
+                  final list = snap.data!.results;
+                  if (list.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'Nothing here yet.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: math.min(list.length, 20),
+                    itemBuilder: (_, i) => _fromPopular(list[i]),
+                  );
+                },
               ),
             ],
           ),

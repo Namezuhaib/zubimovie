@@ -2,9 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class ComingSoonMovie extends StatelessWidget {
+  /// Full URL; if empty, shows a local placeholder (no network).
   final String imageUrl;
   final String overview;
-  final String logoUrl;
+  /// Optional small logo/banner; unreliable third-party URLs removed — prefer TMDB.
+  final String? logoUrl;
+  final String displayTitle;
   final String month;
   final String day;
 
@@ -12,7 +15,8 @@ class ComingSoonMovie extends StatelessWidget {
     super.key,
     required this.imageUrl,
     required this.overview,
-    required this.logoUrl,
+    this.logoUrl,
+    required this.displayTitle,
     required this.month,
     required this.day,
   });
@@ -20,13 +24,13 @@ class ComingSoonMovie extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final heroHeight = size.height * 0.25;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Date Section
           Column(
             children: [
               Text(
@@ -47,54 +51,81 @@ class ComingSoonMovie extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(width: 16),
-
-          // Right Content Section
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Movie Poster
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    width: double.infinity,
-                    height: size.height * 0.25,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      height: size.height * 0.25,
-                      color: Colors.grey[800],
-                    ),
-                    errorWidget: (context, url, error) =>
-                        const Icon(Icons.error, color: Colors.red),
-                  ),
+                  child: imageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          width: double.infinity,
+                          height: heroHeight,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: heroHeight,
+                            color: Colors.grey[800],
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: heroHeight,
+                            color: Colors.grey[900],
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.movie_outlined,
+                              color: Colors.white54,
+                              size: 48,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          height: heroHeight,
+                          width: double.infinity,
+                          color: Colors.grey[900],
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.movie_outlined,
+                            color: Colors.white54,
+                            size: 48,
+                          ),
+                        ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // Logo and Icons
                 Row(
                   children: [
-                    // Movie Logo
                     Expanded(
-                      child: CachedNetworkImage(
-                        imageUrl: logoUrl,
-                        height: 40,
-                        fit: BoxFit.contain,
-                        placeholder: (context, url) => const SizedBox(
-                          height: 40,
-                        ),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error, color: Colors.red),
-                      ),
+                      child: logoUrl != null && logoUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: logoUrl!,
+                              height: 40,
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => const SizedBox(
+                                height: 40,
+                              ),
+                              errorWidget: (context, url, error) => Text(
+                                displayTitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              displayTitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
                     ),
-
-                    // Spacer
                     const Spacer(),
-
-                    // Remind Me
                     Column(
                       children: const [
                         Icon(Icons.notifications_none_rounded, size: 24),
@@ -102,10 +133,7 @@ class ComingSoonMovie extends StatelessWidget {
                         Text("Remind Me", style: TextStyle(fontSize: 12)),
                       ],
                     ),
-
                     const SizedBox(width: 20),
-
-                    // Info
                     Column(
                       children: const [
                         Icon(Icons.info_outline_rounded, size: 24),
@@ -115,10 +143,7 @@ class ComingSoonMovie extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 20),
-
-                // Coming Date Text
                 Text(
                   "Coming on $month $day",
                   style: const TextStyle(
@@ -126,10 +151,7 @@ class ComingSoonMovie extends StatelessWidget {
                     fontSize: 16,
                   ),
                 ),
-
                 const SizedBox(height: 10),
-
-                // Movie Overview
                 Text(
                   overview,
                   maxLines: 4,

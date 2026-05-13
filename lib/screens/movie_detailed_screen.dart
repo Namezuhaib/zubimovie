@@ -68,9 +68,12 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
           }
 
           final movie = snapshot.data!;
-          final backdropUrl = "$imageUrl${movie.backdropPath}";
-
-          final posterUrl = "$imageUrl${movie.posterPath}";
+          final backdropUrl = movie.backdropPath.isNotEmpty
+              ? "$imageUrl${movie.backdropPath}"
+              : null;
+          final posterUrl = movie.posterPath.isNotEmpty
+              ? "$imageUrl${movie.posterPath}"
+              : null;
 
           final formattedDate = formatDate(movie.releaseDate);
           final formattedRuntime = formatRuntime(movie.runtime);
@@ -82,18 +85,25 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                 // Backdrop Image
                 Stack(
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: backdropUrl,
-                      height: MediaQuery.of(context).size.height * 0.4,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    if (backdropUrl != null)
+                      CachedNetworkImage(
+                        imageUrl: backdropUrl,
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    else
+                      Container(
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        width: double.infinity,
+                        color: Colors.grey[900],
+                      ),
                     Container(
                       height: MediaQuery.of(context).size.height * 0.4,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.black.withOpacity(0.8),
+                            Colors.black.withValues(alpha: 0.8),
                             Colors.transparent,
                           ],
                           begin: Alignment.bottomCenter,
@@ -133,12 +143,23 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                           // Poster
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: CachedNetworkImage(
-                              imageUrl: posterUrl,
-                              height: 160,
-                              width: 110,
-                              fit: BoxFit.cover,
-                            ),
+                            child: posterUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: posterUrl,
+                                    height: 160,
+                                    width: 110,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    height: 160,
+                                    width: 110,
+                                    color: Colors.grey[900],
+                                    child: const Icon(
+                                      Icons.movie,
+                                      color: Colors.white54,
+                                      size: 48,
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 16),
 
@@ -148,7 +169,9 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  movie.title ?? "No Title",
+                                  movie.title.isNotEmpty
+                                      ? movie.title
+                                      : "No Title",
                                   style: const TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.bold,
@@ -165,7 +188,7 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      "${movie.voteAverage.toStringAsFixed(1) ?? 'N/A'} / 10",
+                                      "${movie.voteAverage.toStringAsFixed(1)} / 10",
                                       style: const TextStyle(
                                         color: Colors.white70,
                                         fontSize: 14,
@@ -294,6 +317,10 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                               itemBuilder: (context, index) {
                                 final recommendation =
                                     movieRecommendations.results[index];
+                                final recUrl = recommendation.posterPath
+                                        .isNotEmpty
+                                    ? "$imageUrl${recommendation.posterPath}"
+                                    : null;
                                 return Container(
                                   width: 130,
                                   margin: const EdgeInsets.symmetric(
@@ -311,12 +338,20 @@ class _MovieDetailedScreenState extends State<MovieDetailedScreen> {
                                         ),
                                       );
                                     },
-                                    child: CachedNetworkImage(
-                                      imageUrl:
-                                          "$imageUrl${recommendation.posterPath}",
-                                      fit: BoxFit.cover,
-                                      height: 180,
-                                    ),
+                                    child: recUrl != null
+                                        ? CachedNetworkImage(
+                                            imageUrl: recUrl,
+                                            fit: BoxFit.cover,
+                                            height: 180,
+                                          )
+                                        : Container(
+                                            height: 180,
+                                            color: Colors.grey[900],
+                                            child: const Icon(
+                                              Icons.movie,
+                                              color: Colors.white54,
+                                            ),
+                                          ),
                                   ),
                                 );
                               },

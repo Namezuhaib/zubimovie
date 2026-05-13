@@ -58,7 +58,9 @@ class Result {
   factory Result.fromJson(Map<String, dynamic> json) => Result(
     adult: json["adult"] ?? false,
     backdropPath: json["backdrop_path"],
-    genreIds: List<int>.from(json["genre_ids"].map((x) => x)),
+    genreIds: json["genre_ids"] != null
+        ? List<int>.from(json["genre_ids"].map((x) => x as int))
+        : [],
     id: json["id"],
     originCountry: json["origin_country"] != null
         ? List<String>.from(json["origin_country"].map((x) => x))

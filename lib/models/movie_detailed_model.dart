@@ -121,38 +121,55 @@ class MovieDetailedModel {
   factory MovieDetailedModel.fromJson(
     Map<String, dynamic> json,
   ) => MovieDetailedModel(
-    adult: json["adult"],
-    backdropPath: json["backdrop_path"],
+    adult: json["adult"] ?? false,
+    backdropPath: json["backdrop_path"] ?? '',
     belongsToCollection: json["belongs_to_collection"],
-    budget: json["budget"],
-    genres: List<Genre>.from(json["genres"].map((x) => Genre.fromJson(x))),
-    homepage: json["homepage"],
-    id: json["id"],
-    imdbId: json["imdb_id"],
-    originCountry: List<String>.from(json["origin_country"].map((x) => x)),
-    originalLanguage: json["original_language"],
-    originalTitle: json["original_title"],
-    overview: json["overview"],
-    popularity: json["popularity"]?.toDouble(),
-    posterPath: json["poster_path"],
-    productionCompanies: List<ProductionCompany>.from(
-      json["production_companies"].map((x) => ProductionCompany.fromJson(x)),
-    ),
-    productionCountries: List<ProductionCountry>.from(
-      json["production_countries"].map((x) => ProductionCountry.fromJson(x)),
-    ),
-    releaseDate: DateTime.parse(json["release_date"]),
-    revenue: json["revenue"],
-    runtime: json["runtime"],
-    spokenLanguages: List<SpokenLanguage>.from(
-      json["spoken_languages"].map((x) => SpokenLanguage.fromJson(x)),
-    ),
-    status: json["status"],
-    tagline: json["tagline"],
-    title: json["title"],
-    video: json["video"],
-    voteAverage: json["vote_average"]?.toDouble(),
-    voteCount: json["vote_count"],
+    budget: json["budget"] ?? 0,
+    genres: json["genres"] != null
+        ? List<Genre>.from(
+            (json["genres"] as List).map((x) => Genre.fromJson(x)),
+          )
+        : [],
+    homepage: json["homepage"] ?? '',
+    id: json["id"] ?? 0,
+    imdbId: json["imdb_id"] ?? '',
+    originCountry: json["origin_country"] != null
+        ? List<String>.from(json["origin_country"].map((x) => x))
+        : [],
+    originalLanguage: json["original_language"] ?? '',
+    originalTitle: json["original_title"] ?? '',
+    overview: json["overview"] ?? '',
+    popularity: (json["popularity"] as num?)?.toDouble() ?? 0.0,
+    posterPath: json["poster_path"] ?? '',
+    productionCompanies: json["production_companies"] != null
+        ? List<ProductionCompany>.from(
+            (json["production_companies"] as List)
+                .map((x) => ProductionCompany.fromJson(x)),
+          )
+        : [],
+    productionCountries: json["production_countries"] != null
+        ? List<ProductionCountry>.from(
+            (json["production_countries"] as List)
+                .map((x) => ProductionCountry.fromJson(x)),
+          )
+        : [],
+    releaseDate:
+        DateTime.tryParse(json["release_date"]?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    revenue: json["revenue"] ?? 0,
+    runtime: json["runtime"] ?? 0,
+    spokenLanguages: json["spoken_languages"] != null
+        ? List<SpokenLanguage>.from(
+            (json["spoken_languages"] as List)
+                .map((x) => SpokenLanguage.fromJson(x)),
+          )
+        : [],
+    status: json["status"] ?? '',
+    tagline: json["tagline"] ?? '',
+    title: json["title"] ?? '',
+    video: json["video"] ?? false,
+    voteAverage: (json["vote_average"] as num?)?.toDouble() ?? 0.0,
+    voteCount: json["vote_count"] ?? 0,
   );
 
   Map<String, dynamic> toJson() => {

@@ -15,7 +15,9 @@ class UpcomingMovieModel {
   });
 
   factory UpcomingMovieModel.fromJson(Map<String, dynamic> json) => UpcomingMovieModel(
-        dates: Dates.fromJson(json["dates"]),
+        dates: json["dates"] != null && json["dates"] is Map<String, dynamic>
+            ? Dates.fromJson(json["dates"] as Map<String, dynamic>)
+            : Dates.placeholder(),
         page: json["page"],
         results: List<MovieResult>.from(json["results"].map((x) => MovieResult.fromJson(x))),
         totalPages: json["total_pages"],
@@ -36,6 +38,12 @@ class Dates {
         maximum: DateTime.parse(json["maximum"]),
         minimum: DateTime.parse(json["minimum"]),
       );
+
+  /// Some list endpoints omit [dates]; keep parsing resilient.
+  factory Dates.placeholder() {
+    final n = DateTime.now();
+    return Dates(maximum: n, minimum: n);
+  }
 }
 
 class MovieResult {
